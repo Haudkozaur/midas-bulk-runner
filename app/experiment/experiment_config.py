@@ -3,8 +3,8 @@ from enum import Enum
 
 # ENUM to specify which type of model to generate
 class ModelType(Enum):
-    SINGLE_SPAN_BEAM = "single_span_beam",
-    SINGLE_SPAN_BRIDGE = "single_span_bridge",
+    SINGLE_SPAN_BEAM = "single_span_beam"
+    SINGLE_SPAN_BRIDGE = "single_span_bridge"
     MULTI_SPAN_BEAM = "multi_span_beam"
 
 #########
@@ -68,7 +68,7 @@ class ExperimentConfig:
     model_type: ModelType = ModelType.SINGLE_SPAN_BEAM
     random_seed: int | None = 42
     output_csv_path: str = "output/single_span_beam_dataset.csv"
-
+    output_model_dir: str = "models_data"
     save_inputs: bool = True
     save_analysis_status: bool = True
     results_to_save: list[str] = field(
