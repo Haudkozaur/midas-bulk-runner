@@ -1,6 +1,7 @@
 import csv
 import os
 import random
+from pathlib import Path
 
 from midas_civil import *
 
@@ -29,6 +30,11 @@ class BatchGenerator:
                 model_meta = self._build_model(sampled)
 
                 Model.create()
+
+                model_file_path = self._build_model_file_path(i)
+                print(f"Saving MIDAS model to: {model_file_path}")
+                Model.saveAs(str(model_file_path))
+
                 Model.analyse()
 
                 results = self._collect_results(model_meta)
@@ -62,9 +68,15 @@ class BatchGenerator:
         MAPI_BASEURL(app_config.MIDAS_BASE_URL)
 
     def _ensure_output_dir(self) -> None:
-        output_dir = os.path.dirname(self.config.output_csv_path)
-        if output_dir:
-            os.makedirs(output_dir, exist_ok=True)
+        csv_dir = os.path.dirname(self.config.output_csv_path)
+        if csv_dir:
+            os.makedirs(csv_dir, exist_ok=True)
+
+        if self.config.output_model_dir:
+            os.makedirs(self.config.output_model_dir, exist_ok=True)
+
+    def _build_model_file_path(self, model_index: int) -> Path:
+        return Path(self.config.output_model_dir) / f"model_{model_index:04d}.mcb"
 
     def _sample_parameters(self) -> dict:
         if self.config.model_type == ModelType.SINGLE_SPAN_BEAM:
@@ -79,7 +91,7 @@ class BatchGenerator:
                 beam_divisions += 1
 
             return {
-                "model_type": "single_span_beam",
+                "model_type": ModelType.SINGLE_SPAN_BEAM,
                 "span_length_m": round(
                     self.rng.uniform(
                         beam_cfg.span_length_m.min,
@@ -100,7 +112,7 @@ class BatchGenerator:
         raise ValueError(f"Unsupported model_type: {self.config.model_type}")
 
     def _build_model(self, sampled: dict) -> dict:
-        if sampled["model_type"] == "single_span_beam":
+        if sampled["model_type"] == ModelType.SINGLE_SPAN_BEAM:
             return self._build_single_span_beam(sampled)
 
         raise ValueError(f"Unsupported model_type: {sampled['model_type']}")
@@ -140,7 +152,6 @@ class BatchGenerator:
         # to the beam created in the current model.
 
         all_beam_ids_in_box = sorted(Model.Select.Box([0, 0, 0], [L, 0, 0], "ELEM_ID"))
-        print("all_beam_ids_in_box:", all_beam_ids_in_box)
 
         if len(all_beam_ids_in_box) < div:
             raise ValueError(
@@ -148,7 +159,6 @@ class BatchGenerator:
             )
 
         beam_ids = all_beam_ids_in_box[-div:]
-        print("selected current beam_ids:", beam_ids)
 
         left_nodes = sorted(Model.Select.Box([0, 0, 0], [0, 0, 0]))
         right_nodes = sorted(Model.Select.Box([L, 0, 0], [L, 0, 0]))
@@ -246,6 +256,7 @@ class BatchGenerator:
             writer.writeheader()
             writer.writerows(rows)
 
+    
     def _reset_model_if_possible(self) -> None:
         try:
             Model.close()
