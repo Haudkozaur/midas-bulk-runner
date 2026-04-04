@@ -9,3 +9,12 @@ venv/
 
 # vscode
 .vscode/
+
+# generated MIDAS files
+models_data/
+
+# MIDAS file extensions
+*.mcb
+*.bak
+*.OUT
+*.CA1
