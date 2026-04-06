@@ -1,13 +1,12 @@
-import csv
 import os
 import random
 from pathlib import Path
-import polars as pl
 
 from midas_civil import *
 
 from experiment.cases.single_span_post_tensioned_beam import SingleSpanPostTensionedBeam
 from experiment.cases.single_span_beam import SingleSpanBeam
+from experiment.writers.csv_writer import CsvWriter
 
 import config as app_config
 from experiment.experiment_config import ExperimentConfig, Model_Type
@@ -18,6 +17,7 @@ class BatchGenerator:
         self.config = experiment_config
         self.config.validate()
         self.rng = random.Random(self.config.random_seed)
+        self.results_writer = CsvWriter(self.config.output_csv_path)
 
         match self.config.model_type:
             case Model_Type.SINGLE_SPAN_BEAM:
@@ -59,7 +59,6 @@ class BatchGenerator:
                 Model.analyse()
 
                 results = self._collect_results(model_meta)
-                # self._dump_debug_tables(model_meta)
                 status = "OK"
                 error_message = ""
 
@@ -83,7 +82,7 @@ class BatchGenerator:
 
             rows.append(row)
 
-        self._write_csv(rows)
+        self.results_writer.write(rows)
         print(f"\nDone. Dataset saved to: {self.config.output_csv_path}")
 
     def _initialize_midas(self) -> None:
@@ -101,167 +100,6 @@ class BatchGenerator:
 
     def _build_model_file_path(self, model_index: int) -> Path:
         return Path(self.config.output_model_dir) / f"model_{model_index:04d}.mcb"
-
-    def _get_debug_excel_path(self) -> Path:
-        csv_path = Path(self.config.output_csv_path)
-        csv_path.parent.mkdir(parents=True, exist_ok=True)
-        return csv_path.parent / "results_debug.xlsx"
-
-    def _write_df_to_excel(
-        self,
-        df,
-        sheet_name: str,
-        excel_path: Path | None = None,
-    ) -> None:
-        if df is None:
-            return
-
-        if getattr(df, "height", 0) == 0:
-            return
-
-        if excel_path is None:
-            excel_path = self._get_debug_excel_path()
-
-        if not isinstance(df, pl.DataFrame):
-            return
-
-        mode = "a" if excel_path.exists() else "w"
-
-        with open(excel_path, mode="ab" if mode == "a" else "wb") as _:
-            pass
-
-        df.write_excel(
-            workbook=str(excel_path),
-            worksheet=sheet_name,
-        )
-
-    def _dump_result_table_to_excel(
-        self,
-        table_type: str,
-        keys: list[int],
-        loadcases: list[str],
-        sheet_name: str,
-    ) -> None:
-        df = Result.TABLE(
-            table_type,
-            keys=keys,
-            loadcase=loadcases,
-        )
-        self._write_df_to_excel(df, sheet_name)
-
-    def _dump_beam_force_to_excel(
-        self,
-        beam_ids: list[int],
-        loadcases: list[str],
-        sheet_name: str,
-        parts: list[str] | None = None,
-        components: list[str] | None = None,
-    ) -> None:
-        if parts is None:
-            parts = ["PartI", "PartJ"]
-
-        if components is None:
-            components = ["all"]
-
-        df = Result.TABLE.BeamForce(
-            keys=beam_ids,
-            loadcase=loadcases,
-            parts=parts,
-            components=components,
-        )
-        self._write_df_to_excel(df, sheet_name)
-
-    def _dump_beam_force_prestress_to_excel(
-        self,
-        beam_ids: list[int],
-        loadcases: list[str],
-        sheet_name: str,
-        parts: list[str] | None = None,
-        components: list[str] | None = None,
-    ) -> None:
-        if parts is None:
-            parts = ["PartI", "PartJ"]
-
-        if components is None:
-            components = ["all"]
-
-        df = Result.TABLE.BeamForce_StaticPrestress(
-            keys=beam_ids,
-            loadcase=loadcases,
-            parts=parts,
-            components=components,
-        )
-        self._write_df_to_excel(df, sheet_name)
-
-
-    def _dump_user_defined_table_to_excel(
-        self,
-        table_name: str,
-        sheet_name: str,
-        summary: int = 0,
-    ) -> None:
-        df = Result.UserDefinedTable(
-            table_name,
-            summary=summary,
-            force_unit="KN",
-            len_unit="M",
-        )
-        self._write_df_to_excel(df, sheet_name)
-
-    def _dump_debug_tables(self, model_meta: dict) -> None:
-        loadcases = [
-            model_meta["self_weight_result_name"],
-            model_meta["udl_case_result_name"],
-        ]
-
-        if "prestress_case_result_name" in model_meta:
-            loadcases.append(model_meta["prestress_case_result_name"])
-
-        beam_ids = model_meta["beam_ids"]
-        mid_index = len(beam_ids) // 2
-
-        if len(beam_ids) % 2 == 0:
-            mid_beam_ids = [beam_ids[mid_index - 1], beam_ids[mid_index]]
-        else:
-            mid_beam_ids = [beam_ids[mid_index]]
-
-        self._dump_result_table_to_excel(
-            table_type="DISPLACEMENTG",
-            keys=model_meta["mid_nodes"],
-            loadcases=loadcases,
-            sheet_name="mid_disp",
-        )
-
-        self._dump_result_table_to_excel(
-            table_type="REACTIONG",
-            keys=model_meta["left_nodes"],
-            loadcases=loadcases,
-            sheet_name="left_reaction",
-        )
-
-        self._dump_result_table_to_excel(
-            table_type="REACTIONG",
-            keys=model_meta["right_nodes"],
-            loadcases=loadcases,
-            sheet_name="right_reaction",
-        )
-
-        self._dump_beam_force_to_excel(
-            beam_ids=mid_beam_ids,
-            loadcases=loadcases,
-            sheet_name="mid_beam_force",
-            parts=["PartI", "Part1/4", "PartJ"],
-            components=["all"],
-        )
-
-        if "prestress_case_result_name" in model_meta:
-            self._dump_beam_force_prestress_to_excel(
-                beam_ids=mid_beam_ids,
-                loadcases=[model_meta["prestress_case_result_name"]],
-                sheet_name="mid_beam_prestress",
-                parts=["PartI", "Part1/4", "PartJ"],
-                components=["all"],
-            )
 
     def _collect_results(self, model_meta: dict) -> dict:
         result_names = self.config.results_to_save
@@ -357,7 +195,6 @@ class BatchGenerator:
 
         return out
 
-
     def _get_single_result_value(
         self,
         table_type: str,
@@ -383,7 +220,6 @@ class BatchGenerator:
                     return value
 
         return None
-
 
     def _get_midspan_moment_my(self, beam_ids: list[int], loadcase: str):
         if not beam_ids:
@@ -411,7 +247,6 @@ class BatchGenerator:
 
         return None
 
-
     def _sum_not_none(self, values: list):
         numeric_values = [v for v in values if v is not None]
         if not numeric_values:
@@ -433,17 +268,6 @@ class BatchGenerator:
             return float(value)
         except Exception:
             return value
-
-    def _write_csv(self, rows: list[dict]) -> None:
-        if not rows:
-            return
-
-        fieldnames = list(rows[0].keys())
-
-        with open(self.config.output_csv_path, "w", newline="", encoding="utf-8") as f:
-            writer = csv.DictWriter(f, fieldnames=fieldnames)
-            writer.writeheader()
-            writer.writerows(rows)
 
     def _reset_model_if_possible(self) -> None:
         try:
