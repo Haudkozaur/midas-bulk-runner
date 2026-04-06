@@ -21,7 +21,7 @@ def main():
     cfg = ExperimentConfig(
         
         n_models=1, # number of models to generate
-        model_type=Model_Type.SINGLE_SPAN_POST_TENSIONED_BEAM, # type of model to generate
+        model_type=Model_Type.SINGLE_SPAN_BEAM, # type of model to generate
         random_seed=None, # random seed for reproducibility, use same seed to get same results, use None for random seed
         save_inputs=True, # whether to save input parameters in the output csv
         save_analysis_status=True, # whether to save analysis status (OK/ERROR) in the output csv
