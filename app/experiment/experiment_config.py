@@ -44,7 +44,7 @@ class SingleSpanPostTensionedBeamConfig:
     udl_case: str = "UDL"
     prestress_case: str = "Prestress"
 
-    n_tendons: IntRange = field(default_factory=lambda: IntRange("fixed", 1))
+    n_tendons: IntRange = field(default_factory=lambda: IntRange("fixed", 2))
     tendon_force_kn: FloatRange = field(default_factory=lambda: FloatRange("fixed", 220.0))
     tendon_ecc_start_m: FloatRange = field(default_factory=lambda: FloatRange("random", -0.2, 0.0))
     tendon_ecc_mid_m: FloatRange = field(default_factory=lambda: FloatRange("fixed", -0.35))
@@ -167,9 +167,29 @@ class ExperimentConfig:
             raise ValueError("results_to_save cannot be empty")
 
         allowed_results = {
-            "mid_deflection_dz",
-            "left_reaction_fz",
-            "right_reaction_fz",
+            # "mid_deflection_dz", redundant with mid_deflection_total
+            "mid_deflection_sw",
+            "mid_deflection_udl",
+            "mid_deflection_ps",
+            "mid_deflection_total",
+
+            # "left_reaction_fz", redundant with left_reaction_total
+            "left_reaction_sw",
+            "left_reaction_udl",
+            "left_reaction_ps",
+            "left_reaction_total",
+
+            # "right_reaction_fz", redundant with right_reaction_total
+            "right_reaction_sw",
+            "right_reaction_udl",
+            "right_reaction_ps",
+            "right_reaction_total",
+
+            "support_reaction_total_sw",
+            "support_reaction_total_udl",
+            "support_reaction_total_ps",
+            "support_reaction_total_fz",
+
             "mid_moment_sw",
             "mid_moment_udl",
             "mid_moment_ps",

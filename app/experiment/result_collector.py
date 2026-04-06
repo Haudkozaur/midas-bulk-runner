@@ -15,46 +15,215 @@ class ResultCollector:
         udl_lc = model_meta["udl_case_result_name"]
         ps_lc = model_meta.get("prestress_case_result_name")
 
-        loadcases = [sw_lc, udl_lc]
-        if ps_lc is not None:
-            loadcases.append(ps_lc)
+        loadcase_map = {
+            "sw": sw_lc,
+            "udl": udl_lc,
+            "ps": ps_lc,
+        }
 
-        if "mid_deflection_dz" in result_names:
-            values = [
-                self._get_single_result_value(
-                    table_type="DISPLACEMENTG",
-                    keys=model_meta["mid_nodes"],
-                    loadcase=lc,
-                    column_candidates=["DZ"],
+        # =========================
+        # MIDSPAN DEFLECTIONS
+        # =========================
+        if "mid_deflection_sw" in result_names:
+            out["mid_deflection_sw"] = self._get_mid_deflection_dz(
+                mid_nodes=model_meta["mid_nodes"],
+                loadcase=sw_lc,
+            )
+
+        if "mid_deflection_udl" in result_names:
+            out["mid_deflection_udl"] = self._get_mid_deflection_dz(
+                mid_nodes=model_meta["mid_nodes"],
+                loadcase=udl_lc,
+            )
+
+        if "mid_deflection_ps" in result_names:
+            out["mid_deflection_ps"] = (
+                self._get_mid_deflection_dz(
+                    mid_nodes=model_meta["mid_nodes"],
+                    loadcase=ps_lc,
                 )
-                for lc in loadcases
-            ]
-            out["mid_deflection_dz"] = self._sum_not_none(values)
+                if ps_lc is not None
+                else None
+            )
 
-        if "left_reaction_fz" in result_names:
+        if "mid_deflection_dz" in result_names or "mid_deflection_total" in result_names:
             values = [
-                self._get_single_result_value(
-                    table_type="REACTIONG",
-                    keys=model_meta["left_nodes"],
-                    loadcase=lc,
-                    column_candidates=["FZ"],
-                )
-                for lc in loadcases
+                self._get_mid_deflection_dz(
+                    mid_nodes=model_meta["mid_nodes"],
+                    loadcase=sw_lc,
+                ),
+                self._get_mid_deflection_dz(
+                    mid_nodes=model_meta["mid_nodes"],
+                    loadcase=udl_lc,
+                ),
             ]
-            out["left_reaction_fz"] = self._sum_not_none(values)
 
-        if "right_reaction_fz" in result_names:
+            if ps_lc is not None:
+                values.append(
+                    self._get_mid_deflection_dz(
+                        mid_nodes=model_meta["mid_nodes"],
+                        loadcase=ps_lc,
+                    )
+                )
+
+            total_deflection = self._sum_not_none(values)
+
+            if "mid_deflection_dz" in result_names:
+                out["mid_deflection_dz"] = total_deflection
+
+            if "mid_deflection_total" in result_names:
+                out["mid_deflection_total"] = total_deflection
+
+        # =========================
+        # LEFT SUPPORT REACTIONS
+        # =========================
+        if "left_reaction_sw" in result_names:
+            out["left_reaction_sw"] = self._get_support_reaction_fz(
+                support_nodes=model_meta["left_nodes"],
+                loadcase=sw_lc,
+            )
+
+        if "left_reaction_udl" in result_names:
+            out["left_reaction_udl"] = self._get_support_reaction_fz(
+                support_nodes=model_meta["left_nodes"],
+                loadcase=udl_lc,
+            )
+
+        if "left_reaction_ps" in result_names:
+            out["left_reaction_ps"] = (
+                self._get_support_reaction_fz(
+                    support_nodes=model_meta["left_nodes"],
+                    loadcase=ps_lc,
+                )
+                if ps_lc is not None
+                else None
+            )
+
+        if "left_reaction_fz" in result_names or "left_reaction_total" in result_names:
             values = [
-                self._get_single_result_value(
-                    table_type="REACTIONG",
-                    keys=model_meta["right_nodes"],
-                    loadcase=lc,
-                    column_candidates=["FZ"],
-                )
-                for lc in loadcases
+                self._get_support_reaction_fz(
+                    support_nodes=model_meta["left_nodes"],
+                    loadcase=sw_lc,
+                ),
+                self._get_support_reaction_fz(
+                    support_nodes=model_meta["left_nodes"],
+                    loadcase=udl_lc,
+                ),
             ]
-            out["right_reaction_fz"] = self._sum_not_none(values)
 
+            if ps_lc is not None:
+                values.append(
+                    self._get_support_reaction_fz(
+                        support_nodes=model_meta["left_nodes"],
+                        loadcase=ps_lc,
+                    )
+                )
+
+            total_left_reaction = self._sum_not_none(values)
+
+            if "left_reaction_fz" in result_names:
+                out["left_reaction_fz"] = total_left_reaction
+
+            if "left_reaction_total" in result_names:
+                out["left_reaction_total"] = total_left_reaction
+
+        # =========================
+        # RIGHT SUPPORT REACTIONS
+        # =========================
+        if "right_reaction_sw" in result_names:
+            out["right_reaction_sw"] = self._get_support_reaction_fz(
+                support_nodes=model_meta["right_nodes"],
+                loadcase=sw_lc,
+            )
+
+        if "right_reaction_udl" in result_names:
+            out["right_reaction_udl"] = self._get_support_reaction_fz(
+                support_nodes=model_meta["right_nodes"],
+                loadcase=udl_lc,
+            )
+
+        if "right_reaction_ps" in result_names:
+            out["right_reaction_ps"] = (
+                self._get_support_reaction_fz(
+                    support_nodes=model_meta["right_nodes"],
+                    loadcase=ps_lc,
+                )
+                if ps_lc is not None
+                else None
+            )
+
+        if "right_reaction_fz" in result_names or "right_reaction_total" in result_names:
+            values = [
+                self._get_support_reaction_fz(
+                    support_nodes=model_meta["right_nodes"],
+                    loadcase=sw_lc,
+                ),
+                self._get_support_reaction_fz(
+                    support_nodes=model_meta["right_nodes"],
+                    loadcase=udl_lc,
+                ),
+            ]
+
+            if ps_lc is not None:
+                values.append(
+                    self._get_support_reaction_fz(
+                        support_nodes=model_meta["right_nodes"],
+                        loadcase=ps_lc,
+                    )
+                )
+
+            total_right_reaction = self._sum_not_none(values)
+
+            if "right_reaction_fz" in result_names:
+                out["right_reaction_fz"] = total_right_reaction
+
+            if "right_reaction_total" in result_names:
+                out["right_reaction_total"] = total_right_reaction
+
+        # =========================
+        # TOTAL SUPPORT REACTION
+        # useful equilibrium check
+        # =========================
+        if (
+            "support_reaction_total_sw" in result_names
+            or "support_reaction_total_udl" in result_names
+            or "support_reaction_total_ps" in result_names
+            or "support_reaction_total_fz" in result_names
+        ):
+            left_sw = self._get_support_reaction_fz(model_meta["left_nodes"], sw_lc)
+            right_sw = self._get_support_reaction_fz(model_meta["right_nodes"], sw_lc)
+
+            left_udl = self._get_support_reaction_fz(model_meta["left_nodes"], udl_lc)
+            right_udl = self._get_support_reaction_fz(model_meta["right_nodes"], udl_lc)
+
+            total_sw = self._sum_not_none([left_sw, right_sw])
+            total_udl = self._sum_not_none([left_udl, right_udl])
+
+            total_ps = None
+            if ps_lc is not None:
+                left_ps = self._get_support_reaction_fz(model_meta["left_nodes"], ps_lc)
+                right_ps = self._get_support_reaction_fz(model_meta["right_nodes"], ps_lc)
+                total_ps = self._sum_not_none([left_ps, right_ps])
+
+            total_all = self._sum_not_none(
+                [value for value in [total_sw, total_udl, total_ps] if value is not None]
+            )
+
+            if "support_reaction_total_sw" in result_names:
+                out["support_reaction_total_sw"] = total_sw
+
+            if "support_reaction_total_udl" in result_names:
+                out["support_reaction_total_udl"] = total_udl
+
+            if "support_reaction_total_ps" in result_names:
+                out["support_reaction_total_ps"] = total_ps
+
+            if "support_reaction_total_fz" in result_names:
+                out["support_reaction_total_fz"] = total_all
+
+        # =========================
+        # MIDSPAN MOMENTS
+        # =========================
         if "mid_moment_sw" in result_names:
             out["mid_moment_sw"] = self._get_midspan_moment_my(
                 beam_ids=model_meta["beam_ids"],
@@ -100,6 +269,22 @@ class ResultCollector:
             out["mid_moment_total"] = self._sum_not_none(values)
 
         return out
+
+    def _get_mid_deflection_dz(self, mid_nodes: list[int], loadcase: str):
+        return self._get_single_result_value(
+            table_type="DISPLACEMENTG",
+            keys=mid_nodes,
+            loadcase=loadcase,
+            column_candidates=["DZ"],
+        )
+
+    def _get_support_reaction_fz(self, support_nodes: list[int], loadcase: str):
+        return self._get_single_result_value(
+            table_type="REACTIONG",
+            keys=support_nodes,
+            loadcase=loadcase,
+            column_candidates=["FZ"],
+        )
 
     def _get_single_result_value(
         self,
