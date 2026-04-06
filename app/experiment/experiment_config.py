@@ -16,7 +16,7 @@ class Model_Type(Enum):
 
 @dataclass
 class SingleSpanPostTensionedBeamConfig:
-    span_length_m: FloatRange = field(default_factory=lambda: FloatRange("fixed", 10.0))
+    span_length_m: FloatRange = field(default_factory=lambda: FloatRange("random", 8.0, 12.0))
     beam_height_m: FloatRange = field(default_factory=lambda: FloatRange("fixed", 0.8))
     beam_width_m: FloatRange = field(default_factory=lambda: FloatRange("fixed", 0.4))
     udl_kn_per_m: FloatRange = field(default_factory=lambda: FloatRange("random", 5.0, 30.0))
@@ -46,9 +46,12 @@ class SingleSpanPostTensionedBeamConfig:
 
     n_tendons: IntRange = field(default_factory=lambda: IntRange("fixed", 2))
     tendon_force_kn: FloatRange = field(default_factory=lambda: FloatRange("fixed", 220.0))
+    
     tendon_ecc_start_m: FloatRange = field(default_factory=lambda: FloatRange("random", -0.2, 0.0))
-    tendon_ecc_mid_m: FloatRange = field(default_factory=lambda: FloatRange("fixed", -0.35))
+    symetric = True # if True, tendon_ecc_end_m will be set to tendon_ecc_start_m
     tendon_ecc_end_m: FloatRange = field(default_factory=lambda: FloatRange("random", -0.2, 0.0))
+
+    tendon_ecc_mid_m: FloatRange = field(default_factory=lambda: FloatRange("fixed", -0.35))
     tendon_area_mm2: FloatRange = field(default_factory=lambda: FloatRange("fixed", 150.0))
     tendon_profile_type: str = "parabolic"
 

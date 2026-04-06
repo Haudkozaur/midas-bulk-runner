@@ -245,9 +245,14 @@ class SingleSpanPostTensionedBeam:
         span_length = sampled["span_length_m"]
         tendon_force_kn = sampled["tendon_force_kn"]
         tendon_area_mm2 = sampled["tendon_area_mm2"]
+        
         ecc_start = sampled["tendon_ecc_start_m"]
+        if self.config.symetric:
+            ecc_end = sampled["tendon_ecc_start_m"]
+        else:
+            ecc_end = sampled["tendon_ecc_end_m"]
+
         ecc_mid = sampled["tendon_ecc_mid_m"]
-        ecc_end = sampled["tendon_ecc_end_m"]
         profile_type = sampled["tendon_profile_type"]
 
         if profile_type != "parabolic":
