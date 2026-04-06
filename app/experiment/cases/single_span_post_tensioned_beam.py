@@ -1,6 +1,6 @@
 from random import Random
 
-from midas_civil import Boundary, Element, Load, Material, Model, Section
+from midas_civil import Boundary, Element, Load, Material, Model, Section, Tendon, Offset
 
 from experiment.experiment_config import Model_Type, SingleSpanPostTensionedBeamConfig
 
@@ -21,6 +21,7 @@ class SingleSpanPostTensionedBeam:
 
         return {
             "model_type": Model_Type.SINGLE_SPAN_POST_TENSIONED_BEAM,
+
             "span_length_m": round(
                 self.rng.uniform(
                     self.config.span_length_m.min,
@@ -28,6 +29,7 @@ class SingleSpanPostTensionedBeam:
                 ),
                 4,
             ),
+
             "beam_height_m": round(
                 self.rng.uniform(
                     self.config.beam_height_m.min,
@@ -35,6 +37,7 @@ class SingleSpanPostTensionedBeam:
                 ),
                 4,
             ),
+
             "beam_width_m": round(
                 self.rng.uniform(
                     self.config.beam_width_m.min,
@@ -42,6 +45,7 @@ class SingleSpanPostTensionedBeam:
                 ),
                 4,
             ),
+
             "udl_kn_per_m": round(
                 self.rng.uniform(
                     self.config.udl_kn_per_m.min,
@@ -49,24 +53,63 @@ class SingleSpanPostTensionedBeam:
                 ),
                 4,
             ),
+
             "beam_divisions": beam_divisions,
 
-            # tendon bez losowości
-            "n_tendons": 1,
-            "tendon_force_kn": self.config.tendon_force_kn,
-            "tendon_ecc_start_m": self.config.tendon_ecc_start_m,
-            "tendon_ecc_mid_m": self.config.tendon_ecc_mid_m,
-            "tendon_ecc_end_m": self.config.tendon_ecc_end_m,
-            "tendon_area_mm2": self.config.tendon_area_mm2,
+            "n_tendons": self.rng.randint(
+                self.config.n_tendons.min,
+                self.config.n_tendons.max,
+            ),
+
+            "tendon_force_kn": round(
+                self.rng.uniform(
+                    self.config.tendon_force_kn.min,
+                    self.config.tendon_force_kn.max,
+                ),
+                4,
+            ),
+
+            "tendon_ecc_start_m": round(
+                self.rng.uniform(
+                    self.config.tendon_ecc_start_m.min,
+                    self.config.tendon_ecc_start_m.max,
+                ),
+                4,
+            ),
+
+            "tendon_ecc_mid_m": round(
+                self.rng.uniform(
+                    self.config.tendon_ecc_mid_m.min,
+                    self.config.tendon_ecc_mid_m.max,
+                ),
+                4,
+            ),
+
+            "tendon_ecc_end_m": round(
+                self.rng.uniform(
+                    self.config.tendon_ecc_end_m.min,
+                    self.config.tendon_ecc_end_m.max,
+                ),
+                4,
+            ),
+
+            "tendon_area_mm2": round(
+                self.rng.uniform(
+                    self.config.tendon_area_mm2.min,
+                    self.config.tendon_area_mm2.max,
+                ),
+                4,
+            ),
+
             "tendon_profile_type": self.config.tendon_profile_type,
         }
-
     def build_model(self, sampled: dict) -> dict:
         span_length = sampled["span_length_m"]
         udl_kn_per_m = sampled["udl_kn_per_m"]
         beam_divisions = sampled["beam_divisions"]
 
-        self._create_material()
+        self._create_concrete_material()
+        self._create_tendon_material()
         self._create_section(sampled)
 
         beam_ids = self._create_beam_elements(span_length, beam_divisions)
@@ -83,7 +126,7 @@ class SingleSpanPostTensionedBeam:
         Boundary.Support(right_nodes, self.config.right_support)
 
         self._apply_basic_loads(beam_ids, udl_kn_per_m)
-        self._apply_prestress_placeholder(sampled, beam_ids)
+        self._apply_prestress(sampled, beam_ids)
 
         mid_x = span_length / 2.0
         mid_nodes = self._get_nodes_at_x(mid_x)
@@ -110,23 +153,57 @@ class SingleSpanPostTensionedBeam:
             "tendon_profile_type": sampled["tendon_profile_type"],
         }
 
-    def _create_material(self) -> None:
+    def _create_concrete_material(self) -> None:
         Material.CONC(
             self.config.concrete_material_name,
             self.config.concrete_material_code,
             self.config.concrete_material_grade,
         )
+    
+    def _create_tendon_material(self) -> None:
+        Material.STEEL(
+            self.config.tendon_material_name,
+            self.config.tendon_material_code,
+            self.config.tendon_material_grade,
+            id=self.config.tendon_material_id,
+        )
 
+    # def _create_section(self, sampled: dict) -> None:
+    #     _ = sampled
+
+    #     Section.DB(
+    #         self.config.section_name,
+    #         self.config.section_shape,
+    #         self.config.section_db,
+    #         self.config.section_db_name,
+    #         id=self.config.section_id,
+    #     )
     def _create_section(self, sampled: dict) -> None:
-        _ = sampled
+        b = sampled["beam_width_m"]
+        h = sampled["beam_height_m"]
 
-        Section.DB(
-            self.config.section_name,
-            self.config.section_shape,
-            self.config.section_db,
-            self.config.section_db_name,
+        if self.config.outer_polygon is not None:
+            outer_polygon = self.config.outer_polygon
+        else:
+            outer_polygon = self._build_rect_outer_polygon(b, h)
+
+        Section.PSC.Value(
+            Name=self.config.section_name,
+            OuterPolygon=outer_polygon,
+            InnerPolygon=self.config.inner_polygons,
+            Offset=Offset.CC(),
+            useShear=True,
+            use7Dof=False,
             id=self.config.section_id,
         )
+
+    def _build_rect_outer_polygon(self, b: float, h: float) -> list[tuple[float, float]]:
+        return [
+            (-b / 2.0,  h / 2.0),
+            ( b / 2.0,  h / 2.0),
+            ( b / 2.0, -h / 2.0),
+            (-b / 2.0, -h / 2.0),
+        ]
 
     def _create_beam_elements(self, span_length: float, divisions: int) -> list[int]:
         Element.Beam.SDL(
@@ -140,7 +217,7 @@ class SingleSpanPostTensionedBeam:
         all_beam_ids_in_box = sorted(
             Model.Select.Box([0, 0, 0], [span_length, 0, 0], "ELEM_ID")
         )
-        print("all_beam_ids_in_box:", all_beam_ids_in_box)
+        
 
         if len(all_beam_ids_in_box) < divisions:
             raise ValueError(
@@ -149,7 +226,7 @@ class SingleSpanPostTensionedBeam:
             )
 
         beam_ids = all_beam_ids_in_box[-divisions:]
-        print("selected current beam_ids:", beam_ids)
+        
         return beam_ids
 
     def _apply_basic_loads(self, beam_ids: list[int], udl_kn_per_m: float) -> None:
@@ -164,18 +241,66 @@ class SingleSpanPostTensionedBeam:
             P=[-udl_kn_per_m, -udl_kn_per_m],
         )
 
-    def _apply_prestress_placeholder(self, sampled: dict, beam_ids: list[int]) -> None:
-        _ = sampled
-        _ = beam_ids
+    def _apply_prestress(self, sampled: dict, beam_ids: list[int]) -> None:
+        span_length = sampled["span_length_m"]
+        tendon_force_kn = sampled["tendon_force_kn"]
+        tendon_area_mm2 = sampled["tendon_area_mm2"]
+        ecc_start = sampled["tendon_ecc_start_m"]
+        ecc_mid = sampled["tendon_ecc_mid_m"]
+        ecc_end = sampled["tendon_ecc_end_m"]
+        profile_type = sampled["tendon_profile_type"]
 
-        # Placeholder pod przyszłą logikę sprężenia.
-        # Docelowo tutaj można dodać:
-        # - utworzenie load case dla sprężenia,
-        # - definicję kabla,
-        # - przebieg kabla,
-        # - siłę naciągu,
-        # - straty,
-        # - albo uproszczone obciążenie zastępcze.
+        if profile_type != "parabolic":
+            raise ValueError("For now only 'parabolic' tendon_profile_type is supported")
+
+        tendon_prop_name = "TD_PROP_1"
+        tendon_profile_name = "TD_PROFILE_1"
+
+        Tendon.Property(
+            tendon_prop_name,
+            2,
+            self.config.tendon_material_id,
+            tendon_area_mm2,
+            0.10,
+            Tendon.Relaxation.Null(1800, 1500),
+        )
+        Tendon.Property.create()
+
+        prof_xy = [
+            [0.0, 0.0],
+            [span_length, 0.0],
+        ]
+
+        prof_xz = [
+            [0.0, ecc_start],
+            [span_length / 2.0, ecc_mid],
+            [span_length, ecc_end],
+        ]
+
+        Tendon.Profile(
+            tendon_profile_name,
+            1,
+            0,
+            beam_ids,
+            "2D",
+            "SPLINE",
+            ref_axis="ELEMENT",
+            prof_xyR=prof_xy,
+            prof_xzR=prof_xz,
+        )
+        Tendon.Profile.create()
+
+        Tendon.Prestress(
+            tendon_profile_name,
+            self.config.prestress_case,
+            "",
+            "FORCE",
+            "BEGIN",
+            tendon_force_kn,
+            0.0,
+            0,
+        )
+        Tendon.Prestress.create()
 
     def _get_nodes_at_x(self, x: float) -> list[int]:
         return sorted(Model.Select.Box([x, 0, 0], [x, 0, 0], "NODE_ID"))

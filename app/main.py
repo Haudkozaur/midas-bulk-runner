@@ -20,8 +20,8 @@ def main():
     # DEFINE EXPERIMENT CONFIGURATION HERE
     cfg = ExperimentConfig(
         
-        n_models=1, # number of models to generate
-        model_type=Model_Type.SINGLE_SPAN_BEAM, # type of model to generate
+        n_models=10, # number of models to generate
+        model_type=Model_Type.SINGLE_SPAN_POST_TENSIONED_BEAM, # type of model to generate
         random_seed=None, # random seed for reproducibility, use same seed to get same results, use None for random seed
         save_inputs=True, # whether to save input parameters in the output csv
         save_analysis_status=True, # whether to save analysis status (OK/ERROR) in the output csv
@@ -29,6 +29,10 @@ def main():
             "mid_deflection_dz",
             "left_reaction_fz",
             "right_reaction_fz",
+            "mid_moment_sw",
+            "mid_moment_udl",
+            "mid_moment_ps",
+            "mid_moment_total",
         ], # results to save in the output csv.
 
         # Paths to save results and models - these will be created in a unique directory for each run based on timestamp
