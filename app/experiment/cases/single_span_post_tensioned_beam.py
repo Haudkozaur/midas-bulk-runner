@@ -313,7 +313,7 @@ class SingleSpanPostTensionedBeam:
             ecc_end = sampled["tendon_ecc_start_m"]
         else:
             ecc_end = sampled["tendon_ecc_end_m"]
-
+        print(self.config.symetric, ecc_start, ecc_end)
         ecc_mid = sampled["tendon_ecc_mid_m"]
         profile_type = sampled["tendon_profile_type"]
 

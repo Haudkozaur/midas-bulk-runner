@@ -19,12 +19,11 @@ class SingleSpanPostTensionedBeamConfig:
     span_length_m: FloatRange = field(default_factory=lambda: FloatRange("random", 8.0, 12.0))
     beam_height_m: FloatRange = field(default_factory=lambda: FloatRange("fixed", 0.8))
     beam_width_m: FloatRange = field(default_factory=lambda: FloatRange("fixed", 0.4))
-    udl_kn_per_m: FloatRange = field(default_factory=lambda: FloatRange("random", 5.0, 30.0))
-    beam_divisions: IntRange = field(default_factory=lambda: IntRange("random", 10, 30))
+    udl_kn_per_m: FloatRange = field(default_factory=lambda: FloatRange("random", 5.0, 10.0))
+    beam_divisions: IntRange = field(default_factory=lambda: IntRange("random", 10, 16))
 
-    ts_case: str = "TS"
-    ts_left_force_kn: FloatRange = field(default_factory=lambda: FloatRange("fixed", 100.0))
-    ts_right_force_kn: FloatRange = field(default_factory=lambda: FloatRange("fixed", 100.0))
+    ts_left_force_kn: FloatRange = field(default_factory=lambda: FloatRange("fixed", 70.0))
+    ts_right_force_kn: FloatRange = field(default_factory=lambda: FloatRange("fixed", 70.0))
     ts_spacing_m: FloatRange = field(default_factory=lambda: FloatRange("fixed", 2.0)) # Currently not used
 
     concrete_material_name: str = "C40/50"
@@ -47,9 +46,10 @@ class SingleSpanPostTensionedBeamConfig:
 
     self_weight_case: str = "Self Weight"
     udl_case: str = "UDL"
+    ts_case: str = "TS"
     prestress_case: str = "Prestress"
 
-    n_tendons: IntRange = field(default_factory=lambda: IntRange("fixed", 2))
+    n_tendons: IntRange = field(default_factory=lambda: IntRange("fixed", 3))
     tendon_force_kn: FloatRange = field(default_factory=lambda: FloatRange("fixed", 220.0))
     
     tendon_ecc_start_m: FloatRange = field(default_factory=lambda: FloatRange("random", -0.2, 0.0))
@@ -185,28 +185,33 @@ class ExperimentConfig:
             "mid_deflection_sw",
             "mid_deflection_udl",
             "mid_deflection_ps",
+            "mid_deflection_ts",
             "mid_deflection_total",
 
             # "left_reaction_fz", redundant with left_reaction_total
             "left_reaction_sw",
             "left_reaction_udl",
             "left_reaction_ps",
+            "left_reaction_ts",
             "left_reaction_total",
 
             # "right_reaction_fz", redundant with right_reaction_total
             "right_reaction_sw",
             "right_reaction_udl",
             "right_reaction_ps",
+            "right_reaction_ts",
             "right_reaction_total",
 
             "support_reaction_total_sw",
             "support_reaction_total_udl",
             "support_reaction_total_ps",
+            "support_reaction_total_ts",
             "support_reaction_total_fz",
 
             "mid_moment_sw",
             "mid_moment_udl",
             "mid_moment_ps",
+            "mid_moment_ts",
             "mid_moment_total",
         }
 

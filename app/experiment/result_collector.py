@@ -13,13 +13,8 @@ class ResultCollector:
 
         sw_lc = model_meta["self_weight_result_name"]
         udl_lc = model_meta["udl_case_result_name"]
+        ts_lc = model_meta.get("ts_case_result_name")
         ps_lc = model_meta.get("prestress_case_result_name")
-
-        loadcase_map = {
-            "sw": sw_lc,
-            "udl": udl_lc,
-            "ps": ps_lc,
-        }
 
         # =========================
         # MIDSPAN DEFLECTIONS
@@ -34,6 +29,16 @@ class ResultCollector:
             out["mid_deflection_udl"] = self._get_mid_deflection_dz(
                 mid_nodes=model_meta["mid_nodes"],
                 loadcase=udl_lc,
+            )
+
+        if "mid_deflection_ts" in result_names:
+            out["mid_deflection_ts"] = (
+                self._get_mid_deflection_dz(
+                    mid_nodes=model_meta["mid_nodes"],
+                    loadcase=ts_lc,
+                )
+                if ts_lc is not None
+                else None
             )
 
         if "mid_deflection_ps" in result_names:
@@ -57,6 +62,14 @@ class ResultCollector:
                     loadcase=udl_lc,
                 ),
             ]
+
+            if ts_lc is not None:
+                values.append(
+                    self._get_mid_deflection_dz(
+                        mid_nodes=model_meta["mid_nodes"],
+                        loadcase=ts_lc,
+                    )
+                )
 
             if ps_lc is not None:
                 values.append(
@@ -89,6 +102,16 @@ class ResultCollector:
                 loadcase=udl_lc,
             )
 
+        if "left_reaction_ts" in result_names:
+            out["left_reaction_ts"] = (
+                self._get_support_reaction_fz(
+                    support_nodes=model_meta["left_nodes"],
+                    loadcase=ts_lc,
+                )
+                if ts_lc is not None
+                else None
+            )
+
         if "left_reaction_ps" in result_names:
             out["left_reaction_ps"] = (
                 self._get_support_reaction_fz(
@@ -110,6 +133,14 @@ class ResultCollector:
                     loadcase=udl_lc,
                 ),
             ]
+
+            if ts_lc is not None:
+                values.append(
+                    self._get_support_reaction_fz(
+                        support_nodes=model_meta["left_nodes"],
+                        loadcase=ts_lc,
+                    )
+                )
 
             if ps_lc is not None:
                 values.append(
@@ -142,6 +173,16 @@ class ResultCollector:
                 loadcase=udl_lc,
             )
 
+        if "right_reaction_ts" in result_names:
+            out["right_reaction_ts"] = (
+                self._get_support_reaction_fz(
+                    support_nodes=model_meta["right_nodes"],
+                    loadcase=ts_lc,
+                )
+                if ts_lc is not None
+                else None
+            )
+
         if "right_reaction_ps" in result_names:
             out["right_reaction_ps"] = (
                 self._get_support_reaction_fz(
@@ -163,6 +204,14 @@ class ResultCollector:
                     loadcase=udl_lc,
                 ),
             ]
+
+            if ts_lc is not None:
+                values.append(
+                    self._get_support_reaction_fz(
+                        support_nodes=model_meta["right_nodes"],
+                        loadcase=ts_lc,
+                    )
+                )
 
             if ps_lc is not None:
                 values.append(
@@ -187,6 +236,7 @@ class ResultCollector:
         if (
             "support_reaction_total_sw" in result_names
             or "support_reaction_total_udl" in result_names
+            or "support_reaction_total_ts" in result_names
             or "support_reaction_total_ps" in result_names
             or "support_reaction_total_fz" in result_names
         ):
@@ -199,6 +249,12 @@ class ResultCollector:
             total_sw = self._sum_not_none([left_sw, right_sw])
             total_udl = self._sum_not_none([left_udl, right_udl])
 
+            total_ts = None
+            if ts_lc is not None:
+                left_ts = self._get_support_reaction_fz(model_meta["left_nodes"], ts_lc)
+                right_ts = self._get_support_reaction_fz(model_meta["right_nodes"], ts_lc)
+                total_ts = self._sum_not_none([left_ts, right_ts])
+
             total_ps = None
             if ps_lc is not None:
                 left_ps = self._get_support_reaction_fz(model_meta["left_nodes"], ps_lc)
@@ -206,7 +262,7 @@ class ResultCollector:
                 total_ps = self._sum_not_none([left_ps, right_ps])
 
             total_all = self._sum_not_none(
-                [value for value in [total_sw, total_udl, total_ps] if value is not None]
+                [value for value in [total_sw, total_udl, total_ts, total_ps] if value is not None]
             )
 
             if "support_reaction_total_sw" in result_names:
@@ -214,6 +270,9 @@ class ResultCollector:
 
             if "support_reaction_total_udl" in result_names:
                 out["support_reaction_total_udl"] = total_udl
+
+            if "support_reaction_total_ts" in result_names:
+                out["support_reaction_total_ts"] = total_ts
 
             if "support_reaction_total_ps" in result_names:
                 out["support_reaction_total_ps"] = total_ps
@@ -234,6 +293,16 @@ class ResultCollector:
             out["mid_moment_udl"] = self._get_midspan_moment_my(
                 beam_ids=model_meta["beam_ids"],
                 loadcase=udl_lc,
+            )
+
+        if "mid_moment_ts" in result_names:
+            out["mid_moment_ts"] = (
+                self._get_midspan_moment_my(
+                    beam_ids=model_meta["beam_ids"],
+                    loadcase=ts_lc,
+                )
+                if ts_lc is not None
+                else None
             )
 
         if "mid_moment_ps" in result_names:
@@ -257,6 +326,14 @@ class ResultCollector:
                     loadcase=udl_lc,
                 ),
             ]
+
+            if ts_lc is not None:
+                values.append(
+                    self._get_midspan_moment_my(
+                        beam_ids=model_meta["beam_ids"],
+                        loadcase=ts_lc,
+                    )
+                )
 
             if ps_lc is not None:
                 values.append(
@@ -293,6 +370,9 @@ class ResultCollector:
         loadcase: str,
         column_candidates: list[str],
     ):
+        if loadcase is None:
+            return None
+
         df = Result.TABLE(
             table_type,
             keys=keys,
@@ -313,7 +393,7 @@ class ResultCollector:
         return None
 
     def _get_midspan_moment_my(self, beam_ids: list[int], loadcase: str):
-        if not beam_ids:
+        if not beam_ids or loadcase is None:
             return None
 
         left_mid_beam_id = beam_ids[len(beam_ids) // 2 - 1]
