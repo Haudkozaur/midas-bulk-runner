@@ -21,14 +21,32 @@ def main():
     cfg = ExperimentConfig(
         
         n_models=1, # number of models to generate
-        model_type=Model_Type.SINGLE_SPAN_BEAM, # type of model to generate
+        model_type=Model_Type.SINGLE_SPAN_POST_TENSIONED_BEAM, # type of model to generate
         random_seed=None, # random seed for reproducibility, use same seed to get same results, use None for random seed
         save_inputs=True, # whether to save input parameters in the output csv
         save_analysis_status=True, # whether to save analysis status (OK/ERROR) in the output csv
         results_to_save=[
-            "mid_deflection_dz",
-            "left_reaction_fz",
-            "right_reaction_fz",
+            
+            # "mid_deflection_sw",
+            # "mid_deflection_udl",
+            # "mid_deflection_ps",
+            "mid_deflection_total",
+
+            # "left_reaction_sw",
+            # "left_reaction_udl",
+            # "left_reaction_ps",
+            "left_reaction_total",
+
+            # "right_reaction_sw",
+            # "right_reaction_udl",
+            # "right_reaction_ps",
+            "right_reaction_total",
+
+            # "support_reaction_total_sw",
+            # "support_reaction_total_udl",
+            # "support_reaction_total_ps",
+            # "support_reaction_total_fz",
+
             "mid_moment_sw",
             "mid_moment_udl",
             "mid_moment_ps",
