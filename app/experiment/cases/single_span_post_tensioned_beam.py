@@ -2,7 +2,7 @@ from random import Random
 
 from midas_civil import Boundary, Element, Load, Material, Model, Section
 
-from experiment.experiment_config import ModelType, SingleSpanPostTensionedBeamConfig
+from experiment.experiment_config import Model_Type, SingleSpanPostTensionedBeamConfig
 
 
 class SingleSpanPostTensionedBeam:
@@ -20,7 +20,7 @@ class SingleSpanPostTensionedBeam:
             beam_divisions += 1
 
         return {
-            "model_type": ModelType.SINGLE_SPAN_POST_TENSIONED_BEAM,
+            "model_type": Model_Type.SINGLE_SPAN_POST_TENSIONED_BEAM,
             "span_length_m": round(
                 self.rng.uniform(
                     self.config.span_length_m.min,
@@ -49,65 +49,52 @@ class SingleSpanPostTensionedBeam:
                 ),
                 4,
             ),
-            "prestress_force_kn": round(
-                self.rng.uniform(
-                    self.config.prestress_force_kn.min,
-                    self.config.prestress_force_kn.max,
-                ),
-                4,
-            ),
-            "eccentricity_mid_m": round(
-                self.rng.uniform(
-                    self.config.eccentricity_mid_m.min,
-                    self.config.eccentricity_mid_m.max,
-                ),
-                4,
-            ),
             "beam_divisions": beam_divisions,
-            # placeholdery pod przyszły rozwój kabla
+
+            # tendon bez losowości
+            "n_tendons": 1,
+            "tendon_force_kn": self.config.tendon_force_kn,
+            "tendon_ecc_start_m": self.config.tendon_ecc_start_m,
+            "tendon_ecc_mid_m": self.config.tendon_ecc_mid_m,
+            "tendon_ecc_end_m": self.config.tendon_ecc_end_m,
+            "tendon_area_mm2": self.config.tendon_area_mm2,
             "tendon_profile_type": self.config.tendon_profile_type,
-            "n_tendons": self.config.n_tendons,
         }
 
     def build_model(self, sampled: dict) -> dict:
-        L = sampled["span_length_m"]
-        q = sampled["udl_kn_per_m"]
-        div = sampled["beam_divisions"]
+        span_length = sampled["span_length_m"]
+        udl_kn_per_m = sampled["udl_kn_per_m"]
+        beam_divisions = sampled["beam_divisions"]
 
         self._create_material()
         self._create_section(sampled)
 
-        beam_ids = self._create_beam_elements(L, div)
+        beam_ids = self._create_beam_elements(span_length, beam_divisions)
 
         left_nodes = self._get_nodes_at_x(0.0)
-        right_nodes = self._get_nodes_at_x(L)
+        right_nodes = self._get_nodes_at_x(span_length)
 
         if not left_nodes:
             raise ValueError("No left support nodes found at x=0")
         if not right_nodes:
-            raise ValueError(f"No right support nodes found at x={L}")
+            raise ValueError(f"No right support nodes found at x={span_length}")
 
         Boundary.Support(left_nodes, self.config.left_support)
         Boundary.Support(right_nodes, self.config.right_support)
 
-        self._apply_basic_loads(beam_ids, q)
-
-        # TODO:
-        # tutaj później dodasz definicję kabla / tendonu:
-        # - punkty przebiegu
-        # - siłę sprężającą
-        # - straty
-        # - etapowanie
+        self._apply_basic_loads(beam_ids, udl_kn_per_m)
         self._apply_prestress_placeholder(sampled, beam_ids)
 
-        mid_x = L / 2.0
+        mid_x = span_length / 2.0
         mid_nodes = self._get_nodes_at_x(mid_x)
 
         if not mid_nodes:
             raise ValueError(f"No mid-span node found at x={mid_x}")
 
         return {
-            "span_length_m": L,
+            "span_length_m": span_length,
+            "beam_height_m": sampled["beam_height_m"],
+            "beam_width_m": sampled["beam_width_m"],
             "left_nodes": left_nodes,
             "right_nodes": right_nodes,
             "mid_nodes": mid_nodes,
@@ -115,29 +102,24 @@ class SingleSpanPostTensionedBeam:
             "udl_case_result_name": f"{self.config.udl_case}(ST)",
             "self_weight_result_name": f"{self.config.self_weight_case}(ST)",
             "prestress_case_result_name": f"{self.config.prestress_case}(ST)",
-            "prestress_force_kn": sampled["prestress_force_kn"],
-            "eccentricity_mid_m": sampled["eccentricity_mid_m"],
+            "tendon_force_kn": sampled["tendon_force_kn"],
+            "tendon_ecc_start_m": sampled["tendon_ecc_start_m"],
+            "tendon_ecc_mid_m": sampled["tendon_ecc_mid_m"],
+            "tendon_ecc_end_m": sampled["tendon_ecc_end_m"],
+            "tendon_area_mm2": sampled["tendon_area_mm2"],
+            "tendon_profile_type": sampled["tendon_profile_type"],
         }
 
     def _create_material(self) -> None:
         Material.CONC(
-            self.config.material_name,
-            self.config.material_code,
-            self.config.material_grade,
+            self.config.concrete_material_name,
+            self.config.concrete_material_code,
+            self.config.concrete_material_grade,
         )
 
     def _create_section(self, sampled: dict) -> None:
-        # Na start zostawiamy placeholder.
-        # Tu później podepniesz konkretną sekcję MIDAS:
-        # np. RECT / PSC / USER / DB zależnie jak chcesz modelować belkę.
-        #
-        # Opcja 1: sekcja z bazy
-        # Section.DB(...)
-        #
-        # Opcja 2: sekcja prostokątna user-defined
-        # Section.RECT(...)
-        #
-        # Na teraz lecimy najprościej po nazwie z configu.
+        _ = sampled
+
         Section.DB(
             self.config.section_name,
             self.config.section_shape,
@@ -183,18 +165,17 @@ class SingleSpanPostTensionedBeam:
         )
 
     def _apply_prestress_placeholder(self, sampled: dict, beam_ids: list[int]) -> None:
-        # Placeholder pod przyszłą logikę kablobetonu.
-        #
-        # Tu później można dodać np.:
-        # - utworzenie load case dla sprężenia
-        # - definicję tendonu
-        # - przypisanie profilu kabla
-        # - siłę naciągu
-        # - ewentualnie load balancing equivalent load
-        #
-        # Na razie nic nie robi celowo.
         _ = sampled
         _ = beam_ids
+
+        # Placeholder pod przyszłą logikę sprężenia.
+        # Docelowo tutaj można dodać:
+        # - utworzenie load case dla sprężenia,
+        # - definicję kabla,
+        # - przebieg kabla,
+        # - siłę naciągu,
+        # - straty,
+        # - albo uproszczone obciążenie zastępcze.
 
     def _get_nodes_at_x(self, x: float) -> list[int]:
         return sorted(Model.Select.Box([x, 0, 0], [x, 0, 0], "NODE_ID"))
