@@ -30,34 +30,38 @@ def main():
             # "mid_deflection_sw",
             # "mid_deflection_udl",
             # "mid_deflection_ps",
+            "mid_deflection_ts",
             "mid_deflection_total",
 
             # "left_reaction_sw",
             # "left_reaction_udl",
             # "left_reaction_ps",
+            # "left_reaction_ts",
             "left_reaction_total",
 
             # "right_reaction_sw",
             # "right_reaction_udl",
             # "right_reaction_ps",
+            # "right_reaction_ts",
             "right_reaction_total",
 
             # "support_reaction_total_sw",
             # "support_reaction_total_udl",
             # "support_reaction_total_ps",
+            # "support_reaction_total_ts",
             # "support_reaction_total_fz",
 
             "mid_moment_sw",
             "mid_moment_udl",
             "mid_moment_ps",
+            "mid_moment_ts",
             "mid_moment_total",
         ], # results to save in the output csv.
 
         # Paths to save results and models - these will be created in a unique directory for each run based on timestamp
-        output_csv_path=str(output_path),
-        output_model_dir=str(run_dir),
+        output_csv_path=str(output_path), # here path with name of csv file is expected, default is "models_data/results.csv"
+        output_model_dir=str(run_dir), # here path to directory is expected, default is "models_data"
     )
-
     generator = BatchGenerator(cfg)
     generator.run()
 
