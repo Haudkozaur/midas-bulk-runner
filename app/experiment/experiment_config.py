@@ -16,9 +16,9 @@ class Model_Type(Enum):
 
 @dataclass
 class SingleSpanPostTensionedBeamConfig:
-    span_length_m: FloatRange = field(default_factory=lambda: FloatRange("random", 10.0, 30.0))
-    beam_height_m: FloatRange = field(default_factory=lambda: FloatRange("random", 0.6, 1.2))
-    beam_width_m: FloatRange = field(default_factory=lambda: FloatRange("random", 0.25, 0.50))
+    span_length_m: FloatRange = field(default_factory=lambda: FloatRange("fixed", 10.0))
+    beam_height_m: FloatRange = field(default_factory=lambda: FloatRange("fixed", 0.8))
+    beam_width_m: FloatRange = field(default_factory=lambda: FloatRange("fixed", 0.4))
     udl_kn_per_m: FloatRange = field(default_factory=lambda: FloatRange("random", 5.0, 30.0))
     beam_divisions: IntRange = field(default_factory=lambda: IntRange("random", 10, 30))
 
@@ -26,11 +26,16 @@ class SingleSpanPostTensionedBeamConfig:
     concrete_material_code: str = "EN04(RC)"
     concrete_material_grade: str = "C40/50"
 
-    section_name: str = "RECT_PSC"
-    section_shape: str = "DBUSER"
-    section_db: str = "USER"
-    section_db_name: str = "RECT_PSC"
+    tendon_material_name: str = "TD_steel"
+    tendon_material_code: str = "IS(S)"
+    tendon_material_grade: str = "E450"
+    tendon_material_id: int = 1
+
+    section_name: str = "PSC_RECT_VALUE"
     section_id: int = 2
+
+    outer_polygon: list[tuple[float, float]] | None = None
+    inner_polygons: list[list[tuple[float, float]]] = field(default_factory=list)
 
     left_support: str = "111000"
     right_support: str = "011000"
@@ -39,12 +44,12 @@ class SingleSpanPostTensionedBeamConfig:
     udl_case: str = "UDL"
     prestress_case: str = "Prestress"
 
-    n_tendons: int = 1
-    tendon_force_kn: float = 220.0
-    tendon_ecc_start_m: float = -0.05
-    tendon_ecc_mid_m: float = -0.35
-    tendon_ecc_end_m: float = -0.05
-    tendon_area_mm2: float = 150.0
+    n_tendons: IntRange = field(default_factory=lambda: IntRange("fixed", 1))
+    tendon_force_kn: FloatRange = field(default_factory=lambda: FloatRange("fixed", 220.0))
+    tendon_ecc_start_m: FloatRange = field(default_factory=lambda: FloatRange("random", -0.2, 0.0))
+    tendon_ecc_mid_m: FloatRange = field(default_factory=lambda: FloatRange("fixed", -0.35))
+    tendon_ecc_end_m: FloatRange = field(default_factory=lambda: FloatRange("random", -0.2, 0.0))
+    tendon_area_mm2: FloatRange = field(default_factory=lambda: FloatRange("fixed", 150.0))
     tendon_profile_type: str = "parabolic"
 
     def validate(self) -> None:
@@ -65,6 +70,9 @@ class SingleSpanPostTensionedBeamConfig:
 
         if self.tendon_profile_type not in {"parabolic", "straight"}:
             raise ValueError("tendon_profile_type must be 'parabolic' or 'straight'")
+
+        if self.outer_polygon is not None and len(self.outer_polygon) < 3:
+            raise ValueError("outer_polygon must contain at least 3 points")
 
 @dataclass
 class SingleSpanBeamConfig:
@@ -113,6 +121,7 @@ class ExperimentConfig:
             "mid_deflection_dz",
             "left_reaction_fz",
             "right_reaction_fz",
+            "mid_moment_my",
         ]
     )
     # in this part we have to add all currently supported Model_Types as possible types for model_config, 
@@ -161,6 +170,10 @@ class ExperimentConfig:
             "mid_deflection_dz",
             "left_reaction_fz",
             "right_reaction_fz",
+            "mid_moment_sw",
+            "mid_moment_udl",
+            "mid_moment_ps",
+            "mid_moment_total",
         }
 
         invalid_results = [r for r in self.results_to_save if r not in allowed_results]

@@ -124,7 +124,6 @@ class SingleSpanBeam:
 
         beam_ids = all_beam_ids_in_box[-divisions:]
         
-
         return beam_ids
 
     def _get_nodes_at_x(self, x: float) -> list[int]:
