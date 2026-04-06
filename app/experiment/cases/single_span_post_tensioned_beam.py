@@ -27,7 +27,7 @@ class SingleSpanPostTensionedBeam:
                     self.config.span_length_m.min,
                     self.config.span_length_m.max,
                 ),
-                4,
+                1,
             ),
 
             "beam_height_m": round(
@@ -35,7 +35,7 @@ class SingleSpanPostTensionedBeam:
                     self.config.beam_height_m.min,
                     self.config.beam_height_m.max,
                 ),
-                4,
+                2,
             ),
 
             "beam_width_m": round(
@@ -43,7 +43,7 @@ class SingleSpanPostTensionedBeam:
                     self.config.beam_width_m.min,
                     self.config.beam_width_m.max,
                 ),
-                4,
+                2,
             ),
 
             "udl_kn_per_m": round(
@@ -51,7 +51,30 @@ class SingleSpanPostTensionedBeam:
                     self.config.udl_kn_per_m.min,
                     self.config.udl_kn_per_m.max,
                 ),
-                4,
+                1,
+            ),
+
+            "ts_left_force_kn": round(
+                self.rng.uniform(
+                    self.config.ts_left_force_kn.min,
+                    self.config.ts_left_force_kn.max,
+                ),
+                1,
+            ),
+
+            "ts_right_force_kn": round(
+                self.rng.uniform(
+                    self.config.ts_right_force_kn.min,
+                    self.config.ts_right_force_kn.max,
+                ),
+                1,
+            ),
+            "ts_spacing_m": round(
+                self.rng.uniform(
+                    self.config.ts_spacing_m.min,
+                    self.config.ts_spacing_m.max,
+                ),
+                1,
             ),
 
             "beam_divisions": beam_divisions,
@@ -66,7 +89,7 @@ class SingleSpanPostTensionedBeam:
                     self.config.tendon_force_kn.min,
                     self.config.tendon_force_kn.max,
                 ),
-                4,
+                1,
             ),
 
             "tendon_ecc_start_m": round(
@@ -74,7 +97,7 @@ class SingleSpanPostTensionedBeam:
                     self.config.tendon_ecc_start_m.min,
                     self.config.tendon_ecc_start_m.max,
                 ),
-                4,
+                2,
             ),
 
             "tendon_ecc_mid_m": round(
@@ -82,7 +105,7 @@ class SingleSpanPostTensionedBeam:
                     self.config.tendon_ecc_mid_m.min,
                     self.config.tendon_ecc_mid_m.max,
                 ),
-                4,
+                2,
             ),
 
             "tendon_ecc_end_m": round(
@@ -90,7 +113,7 @@ class SingleSpanPostTensionedBeam:
                     self.config.tendon_ecc_end_m.min,
                     self.config.tendon_ecc_end_m.max,
                 ),
-                4,
+                2,
             ),
 
             "tendon_area_mm2": round(
@@ -98,7 +121,7 @@ class SingleSpanPostTensionedBeam:
                     self.config.tendon_area_mm2.min,
                     self.config.tendon_area_mm2.max,
                 ),
-                4,
+                1,
             ),
 
             "tendon_profile_type": self.config.tendon_profile_type,
@@ -126,6 +149,7 @@ class SingleSpanPostTensionedBeam:
         Boundary.Support(right_nodes, self.config.right_support)
 
         self._apply_basic_loads(beam_ids, udl_kn_per_m)
+        left_ts_nodes, right_ts_nodes = self._apply_ts_loads(sampled)
         self._apply_prestress(sampled, beam_ids)
 
         mid_x = span_length / 2.0
@@ -144,6 +168,12 @@ class SingleSpanPostTensionedBeam:
             "beam_ids": beam_ids,
             "udl_case_result_name": f"{self.config.udl_case}(ST)",
             "self_weight_result_name": f"{self.config.self_weight_case}(ST)",
+            "ts_case_result_name": f"{self.config.ts_case}(ST)",
+            "ts_left_force_kn": sampled["ts_left_force_kn"],
+            "ts_right_force_kn": sampled["ts_right_force_kn"],
+            "left_ts_nodes": left_ts_nodes,
+            "right_ts_nodes": right_ts_nodes,
+            "ts_spacing_m": sampled["ts_spacing_m"],
             "prestress_case_result_name": f"{self.config.prestress_case}(ST)",
             "n_tendons": sampled["n_tendons"],
             "tendon_force_kn": sampled["tendon_force_kn"],
@@ -243,6 +273,30 @@ class SingleSpanPostTensionedBeam:
             D=[0, 1],
             P=[-udl_kn_per_m, -udl_kn_per_m],
         )
+
+    def _apply_ts_loads(self, sampled: dict) -> tuple[list[int], list[int]]:
+        div = sampled["beam_divisions"]
+
+        left_ts_node = div // 2
+        right_ts_node = div // 2 + 2
+
+        Load.Nodal(
+            [left_ts_node],
+            self.config.ts_case,
+            "",
+            FZ=-sampled["ts_left_force_kn"],
+        )
+
+        Load.Nodal(
+            [right_ts_node],
+            self.config.ts_case,
+            "",
+            FZ=-sampled["ts_right_force_kn"],
+        )
+
+        return [left_ts_node], [right_ts_node]
+
+    
 
     def _apply_prestress(self, sampled: dict, beam_ids: list[int]) -> None:
         span_length = sampled["span_length_m"]

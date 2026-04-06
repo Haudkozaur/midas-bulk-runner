@@ -22,6 +22,11 @@ class SingleSpanPostTensionedBeamConfig:
     udl_kn_per_m: FloatRange = field(default_factory=lambda: FloatRange("random", 5.0, 30.0))
     beam_divisions: IntRange = field(default_factory=lambda: IntRange("random", 10, 30))
 
+    ts_case: str = "TS"
+    ts_left_force_kn: FloatRange = field(default_factory=lambda: FloatRange("fixed", 100.0))
+    ts_right_force_kn: FloatRange = field(default_factory=lambda: FloatRange("fixed", 100.0))
+    ts_spacing_m: FloatRange = field(default_factory=lambda: FloatRange("fixed", 2.0)) # Currently not used
+
     concrete_material_name: str = "C40/50"
     concrete_material_code: str = "EN04(RC)"
     concrete_material_grade: str = "C40/50"
@@ -68,6 +73,12 @@ class SingleSpanPostTensionedBeamConfig:
         self.tendon_ecc_end_m.validate("tendon_ecc_end_m")
         self.tendon_area_mm2.validate("tendon_area_mm2")
 
+        self.ts_left_force_kn.validate("ts_left_force_kn")
+        self.ts_right_force_kn.validate("ts_right_force_kn")
+        self.ts_spacing_m.validate("ts_spacing_m")
+
+        if self.ts_spacing_m.min <= 0:
+            raise ValueError("ts_spacing_m must be > 0")
         if self.beam_divisions.min < 2:
             raise ValueError("beam_divisions.min must be >= 2")
 
