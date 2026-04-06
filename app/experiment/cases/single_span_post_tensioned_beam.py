@@ -145,11 +145,14 @@ class SingleSpanPostTensionedBeam:
             "udl_case_result_name": f"{self.config.udl_case}(ST)",
             "self_weight_result_name": f"{self.config.self_weight_case}(ST)",
             "prestress_case_result_name": f"{self.config.prestress_case}(ST)",
+            "n_tendons": sampled["n_tendons"],
             "tendon_force_kn": sampled["tendon_force_kn"],
+            "tendon_area_mm2": sampled["tendon_area_mm2"],
+            "total_tendon_force_kn": sampled["n_tendons"] * sampled["tendon_force_kn"],
+            "total_tendon_area_mm2": sampled["n_tendons"] * sampled["tendon_area_mm2"],
             "tendon_ecc_start_m": sampled["tendon_ecc_start_m"],
             "tendon_ecc_mid_m": sampled["tendon_ecc_mid_m"],
             "tendon_ecc_end_m": sampled["tendon_ecc_end_m"],
-            "tendon_area_mm2": sampled["tendon_area_mm2"],
             "tendon_profile_type": sampled["tendon_profile_type"],
         }
 
@@ -243,9 +246,14 @@ class SingleSpanPostTensionedBeam:
 
     def _apply_prestress(self, sampled: dict, beam_ids: list[int]) -> None:
         span_length = sampled["span_length_m"]
+
+        n_tendons = sampled["n_tendons"]
         tendon_force_kn = sampled["tendon_force_kn"]
         tendon_area_mm2 = sampled["tendon_area_mm2"]
-        
+
+        total_tendon_force_kn = n_tendons * tendon_force_kn
+        total_tendon_area_mm2 = n_tendons * tendon_area_mm2
+
         ecc_start = sampled["tendon_ecc_start_m"]
         if self.config.symetric:
             ecc_end = sampled["tendon_ecc_start_m"]
@@ -265,7 +273,7 @@ class SingleSpanPostTensionedBeam:
             tendon_prop_name,
             2,
             self.config.tendon_material_id,
-            tendon_area_mm2,
+            total_tendon_area_mm2,
             0.10,
             Tendon.Relaxation.Null(1800, 1500),
         )
@@ -301,7 +309,7 @@ class SingleSpanPostTensionedBeam:
             "",
             "FORCE",
             "BEGIN",
-            tendon_force_kn,
+            total_tendon_force_kn,
             0.0,
             0,
         )
