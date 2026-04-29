@@ -1,11 +1,13 @@
 import os
 import random
 from pathlib import Path
+from unittest import case
 
 from midas_civil import *
 
 from experiment.cases.single_span_post_tensioned_beam import SingleSpanPostTensionedBeam
 from experiment.cases.single_span_beam import SingleSpanBeam
+from experiment.cases.two_span_post_tensioned_beam import TwoSpanPostTensionedBeam
 from experiment.result_collector import ResultCollector
 from experiment.writers.csv_writer import CsvWriter
 
@@ -27,13 +29,16 @@ class BatchGenerator:
                     config=self.config.model_config,
                     rng=self.rng,
                 )
-
             case Model_Type.SINGLE_SPAN_POST_TENSIONED_BEAM:
                 self.model_generator = SingleSpanPostTensionedBeam(
                     config=self.config.model_config,
                     rng=self.rng,
                 )
-
+            case Model_Type.TWO_SPAN_POST_TENSIONED_BEAM:
+                self.model_generator = TwoSpanPostTensionedBeam(
+                    config=self.config.model_config,
+                    rng=self.rng,
+        )
             case _:
                 raise ValueError(f"Unsupported model_type: {self.config.model_type}")
 
