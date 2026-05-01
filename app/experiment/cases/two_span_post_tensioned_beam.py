@@ -59,7 +59,20 @@ class TwoSpanPostTensionedBeam:
             case _:
                 raise ValueError(f"Unsupported tendon shape type: {shape_type}")
     
+    def _make_even(self, value: int) -> int:
+        if value % 2 != 0:
+            value += 1
+        return value
+
+
     def sample_parameters(self) -> dict:
+        tendon_shape_type = self._sample_tendon_shape_type()
+
+        is_symmetric = tendon_shape_type in {
+            self.config.TendonShapeType.FORCED_SYMMETRIC_TWO_SPAN,
+            self.config.TendonShapeType.FORCED_REALISTIC_SYMMETRIC_TWO_SPAN,
+        }
+
         left_span_length = round(
             self.rng.uniform(
                 self.config.left_span_length_m.min,
@@ -68,24 +81,29 @@ class TwoSpanPostTensionedBeam:
             1,
         )
 
-        right_span_length = round(
-            self.rng.uniform(
-                self.config.right_span_length_m.min,
-                self.config.right_span_length_m.max,
-            ),
-            1,
-        )
+        if is_symmetric:
+            right_span_length = left_span_length
+        else:
+            right_span_length = round(
+                self.rng.uniform(
+                    self.config.right_span_length_m.min,
+                    self.config.right_span_length_m.max,
+                ),
+                1,
+            )
 
-        left_beam_divisions = max(4, round(left_span_length / 1.5))
-        right_beam_divisions = max(4, round(right_span_length / 1.5))
+        left_beam_divisions = self._make_even(max(4, round(left_span_length / 1.5)))
 
-        if left_beam_divisions % 2 != 0:
-            left_beam_divisions += 1
+        if is_symmetric:
+            right_beam_divisions = left_beam_divisions
+        else:
+            right_beam_divisions = self._make_even(max(4, round(right_span_length / 1.5)))
 
-        if right_beam_divisions % 2 != 0:
-            right_beam_divisions += 1
+        if is_symmetric:
+            right_beam_divisions = left_beam_divisions
+        else:
+            right_beam_divisions = self._make_even(max(4, round(right_span_length / 1.5)))
 
-        tendon_shape_type = self._sample_tendon_shape_type()
         tendon_ranges = self._get_tendon_ecc_ranges(tendon_shape_type)
 
         tendon_ecc_left = round(
@@ -165,6 +183,9 @@ class TwoSpanPostTensionedBeam:
             "tendon_ecc_right_span_mid_m": tendon_ecc_right_mid,
             "tendon_ecc_right_m": tendon_ecc_right,
         }
+    
+
+    
     def build_model(self, sampled: dict) -> dict:
         left_span = sampled["left_span_length_m"]
         right_span = sampled["right_span_length_m"]
@@ -179,9 +200,17 @@ class TwoSpanPostTensionedBeam:
 
         beam_ids = self._create_beam_elements(total_span, total_divisions)
 
-        left_nodes = self._get_nodes_at_x(0.0)
+        left_nodes = [1]
         middle_nodes = [sampled["left_beam_divisions"] + 1]
         right_nodes = [total_divisions + 1]
+
+        all_nodes = list(range(1, total_divisions + 2))
+
+        support_nodes = {
+            "left": left_nodes,
+            "middle": middle_nodes,
+            "right": right_nodes,
+        }
 
         if not left_nodes:
             raise ValueError("No left support nodes found at x=0")
@@ -215,7 +244,9 @@ class TwoSpanPostTensionedBeam:
             "left_mid_nodes": left_mid_nodes,
             "right_mid_nodes": right_mid_nodes,
 
-            # na razie dla kompatybilności z ResultCollector
+            "all_nodes": all_nodes,
+            "support_nodes": support_nodes,
+
             "mid_nodes": left_mid_nodes,
 
             "beam_ids": beam_ids,
@@ -290,17 +321,7 @@ class TwoSpanPostTensionedBeam:
             sect=self.config.section_id,
         )
 
-        all_beam_ids_in_box = sorted(
-            Model.Select.Box([0, 0, 0], [total_span_length, 0, 0], "ELEM_ID")
-        )
-
-        if len(all_beam_ids_in_box) < divisions:
-            raise ValueError(
-                f"Expected at least {divisions} beam elements in selection box, "
-                f"got {len(all_beam_ids_in_box)}"
-            )
-
-        return all_beam_ids_in_box[-divisions:]
+        return list(range(1, divisions + 1))
 
     def _apply_basic_loads(self, beam_ids: list[int], udl_kn_per_m: float) -> None:
         Load.SW(self.config.self_weight_case)
