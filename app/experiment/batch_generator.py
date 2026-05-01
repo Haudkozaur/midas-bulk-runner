@@ -46,8 +46,6 @@ class BatchGenerator:
         self._initialize_midas()
         self._ensure_output_dir()
 
-        rows: list[dict] = []
-
         for i in range(1, self.config.n_models + 1):
             print(f"\n--- Generating model {i}/{self.config.n_models} ---")
 
@@ -78,6 +76,8 @@ class BatchGenerator:
 
             row = {}
 
+            row["model_index"] = i
+
             if self.config.save_inputs:
                 row.update(sampled)
 
@@ -87,9 +87,8 @@ class BatchGenerator:
                 row["analysis_status"] = status
                 row["error_message"] = error_message
 
-            rows.append(row)
+            self.results_writer.write_row(row)
 
-        self.results_writer.write(rows)
         print(f"\nDone. Dataset saved to: {self.config.output_csv_path}")
 
     def _initialize_midas(self) -> None:

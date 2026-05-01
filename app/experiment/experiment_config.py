@@ -302,6 +302,9 @@ class ExperimentConfig:
             "mid_moment_ps",
             "mid_moment_ts",
             "mid_moment_total",
+            "deflections_dz",
+            "moments_my",
+            "reactions_fz",
         }
 
         invalid_results = [r for r in self.results_to_save if r not in allowed_results]
