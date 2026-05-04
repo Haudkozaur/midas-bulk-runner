@@ -345,18 +345,21 @@ class TwoSpanPostTensionedBeam:
         tendon_area_mm2 = sampled["tendon_area_mm2"]
 
         total_tendon_force_kn = n_tendons * tendon_force_kn
-        total_tendon_area_mm2 = n_tendons * tendon_area_mm2
+        total_tendon_area_mm2 = tendon_area_mm2*0.000001 # convert
+        tendon_duct_diameter = 0.1 # 100mm duct diameter
 
+        tendon_prop_id = 1
         tendon_prop_name = "TD_PROP_1"
         tendon_profile_name = "TD_PROFILE_1"
 
         Tendon.Property(
-            tendon_prop_name,
-            2,
-            self.config.tendon_material_id,
-            total_tendon_area_mm2,
-            0.10,
-            Tendon.Relaxation.Null(1800, 1500),
+            name = tendon_prop_name,
+            type = 2,
+            id = tendon_prop_id,
+            matID = self.config.tendon_material_id,
+            tdn_area = total_tendon_area_mm2,
+            duct_dia = tendon_duct_diameter,
+            relaxation = Tendon.Relaxation.Null(1800, 1500),
         )
         Tendon.Property.create()
 
@@ -374,12 +377,12 @@ class TwoSpanPostTensionedBeam:
         ]
 
         Tendon.Profile(
-            tendon_profile_name,
-            1,
-            0,
-            beam_ids,
-            "2D",
-            "SPLINE",
+            name = tendon_profile_name,
+            tdn_prop = tendon_prop_id,
+            tdn_group = 0,
+            elem = beam_ids,
+            inp_type = "2D",
+            curve_type = "SPLINE",
             ref_axis="ELEMENT",
             prof_xyR=prof_xy,
             prof_xzR=prof_xz,
@@ -391,9 +394,9 @@ class TwoSpanPostTensionedBeam:
             self.config.prestress_case,
             "",
             "FORCE",
-            "BEGIN",
+            "BOTH",
             total_tendon_force_kn,
-            0.0,
+            total_tendon_force_kn,
             0,
         )
         Tendon.Prestress.create()

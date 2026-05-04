@@ -462,10 +462,9 @@ class ResultCollector:
                 loadcase=loadcase,
             )
 
-            moments_my[case_name] = self._get_beam_force_component_by_node(
+            moments_my[case_name] = self._get_moments_my_by_node(
                 beam_ids=beam_ids,
                 loadcase=loadcase,
-                component_candidates=["Moment-y", "My", "MY"],
             )
 
             reactions_fz[case_name] = self._get_reactions_by_support(
@@ -474,7 +473,7 @@ class ResultCollector:
             )
 
         deflections_dz["total"] = self._sum_node_series(deflections_dz.values())
-        moments_my["total"] = self._sum_node_side_series(moments_my.values())
+        moments_my["total"] = self._sum_node_series(moments_my.values())
         reactions_fz["total"] = self._sum_support_series(reactions_fz.values())
 
         out["deflections_dz"] = deflections_dz
@@ -482,7 +481,58 @@ class ResultCollector:
         out["reactions_fz"] = reactions_fz
 
         return out
+    def _get_moments_my_by_node(
+        self,
+        beam_ids: list[int],
+        loadcase: str,
+    ) -> dict[int, float]:
+        if not beam_ids or loadcase is None:
+            return {}
 
+        df = Result.TABLE.BeamForce(
+            keys=beam_ids,
+            loadcase=[loadcase],
+            parts=["PartJ"],
+            components=["all"],
+        )
+
+        if df is None or df.height == 0:
+            return {}
+
+        out = {}
+
+        elem_to_index = {
+            elem_id: index
+            for index, elem_id in enumerate(beam_ids)
+        }
+
+        for row in df.iter_rows(named=True):
+            elem_id = self._get_first_existing_value(
+                row,
+                ["Elem", "ELEM", "Element", "Element No.", "ElementNo"],
+            )
+
+            if elem_id is None:
+                continue
+
+            elem_id = int(elem_id)
+
+            if elem_id not in elem_to_index:
+                continue
+
+            value = self._get_first_existing_value(
+                row,
+                ["Moment-y", "My", "MY", "Moment-y(kN*m)", "My(kN*m)"],
+            )
+
+            if value is None:
+                continue
+
+            node_id = elem_to_index[elem_id] + 2
+            out[node_id] = float(value)
+
+        return out
+    
     def _get_deflections_by_node(
         self,
         nodes: list[int],
@@ -525,18 +575,31 @@ class ResultCollector:
         beam_ids: list[int],
         loadcase: str,
         component_candidates: list[str],
+        use_static_prestress: bool = False,
     ) -> dict[int, dict[str, float]]:
         if not beam_ids or loadcase is None:
             return {}
 
-        df = Result.TABLE.BeamForce(
-            keys=beam_ids,
-            loadcase=[loadcase],
-            parts=["PartI", "PartJ"],
-        )
+        if use_static_prestress:
+            df = Result.TABLE.BeamForce_StaticPrestress(
+                keys=beam_ids,
+                loadcase=[loadcase],
+                parts=["PartI", "PartJ"],
+                components=["all"],
+            )
+        else:
+            df = Result.TABLE.BeamForce(
+                keys=beam_ids,
+                loadcase=[loadcase],
+                parts=["PartI", "PartJ"],
+                components=["all"],
+            )
 
         if df is None or df.height == 0:
+            print(f"No beam force results for loadcase: {loadcase}")
             return {}
+
+        print(f"Beam force columns for {loadcase}: {df.columns}")
 
         out = {}
 
@@ -564,6 +627,7 @@ class ResultCollector:
                 continue
 
             elem_id = int(elem_id)
+            part = str(part)
 
             if elem_id not in elem_to_index:
                 continue
@@ -578,11 +642,11 @@ class ResultCollector:
             if value is None:
                 continue
 
-            if part == "PartI":
+            if part in ("PartI", "I") or part.startswith("I"):
                 node_id = beam_index + 1
                 side = "from_right"
 
-            elif part == "PartJ":
+            elif part in ("PartJ", "J") or part.startswith("J"):
                 node_id = beam_index + 2
                 side = "from_left"
 
