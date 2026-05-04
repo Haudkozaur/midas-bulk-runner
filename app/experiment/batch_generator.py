@@ -1,6 +1,7 @@
 import os
 import random
 from pathlib import Path
+import time
 from unittest import case
 
 from midas_civil import *
@@ -42,60 +43,135 @@ class BatchGenerator:
             case _:
                 raise ValueError(f"Unsupported model_type: {self.config.model_type}")
 
+    # def run(self) -> None:
+    #     self._initialize_midas()
+    #     self._ensure_output_dir()
+
+    #     for i in range(1, self.config.n_models + 1):
+    #         print(f"\n--- Generating model {i}/{self.config.n_models} ---")
+
+    #         try:
+    #             self._reset_model_if_possible()
+
+    #             sampled = self.model_generator.sample_parameters()
+    #             model_meta = self.model_generator.build_model(sampled)
+
+    #             Model.create()
+
+    #             model_file_path = self._build_model_file_path(i)
+    #             print(f"Saving MIDAS model to: {model_file_path}")
+    #             Model.saveAs(str(model_file_path))
+
+    #             Model.analyse()
+
+    #             results = self._collect_results_with_retry(model_meta)
+    #             status = "OK"
+    #             error_message = ""
+
+    #         except Exception as ex:
+    #             sampled = {}
+    #             results = {name: None for name in self.config.results_to_save}
+    #             status = "ERROR"
+    #             error_message = str(ex)
+    #             print(f"Model {i} failed: {ex}")
+
+    #         row = {}
+
+    #         row["model_index"] = i
+
+    #         if self.config.save_inputs:
+    #             row.update(sampled)
+
+    #         row.update(results)
+
+    #         if self.config.save_analysis_status:
+    #             row["analysis_status"] = status
+    #             row["error_message"] = error_message
+
+    #         self.results_writer.write_row(row)
+
+    #     print(f"\nDone. Dataset saved to: {self.config.output_csv_path}")
     def run(self) -> None:
         self._initialize_midas()
         self._ensure_output_dir()
 
-        for i in range(1, self.config.n_models + 1):
-            print(f"\n--- Generating model {i}/{self.config.n_models} ---")
+        i = 1
 
-            try:
-                self._reset_model_if_possible()
+        print("\nInfinite generation started.")
+        print("Press Ctrl+C to stop safely and save results.\n")
 
-                sampled = self.model_generator.sample_parameters()
-                model_meta = self.model_generator.build_model(sampled)
+        try:
+            while True:
+                print(f"\n--- Generating model {i} ---")
 
-                Model.create()
-
-                model_file_path = self._build_model_file_path(i)
-                print(f"Saving MIDAS model to: {model_file_path}")
-                Model.saveAs(str(model_file_path))
-
-                Model.analyse()
-
-                results = self.result_collector.collect(model_meta)
-                status = "OK"
-                error_message = ""
-
-            except Exception as ex:
                 sampled = {}
-                results = {name: None for name in self.config.results_to_save}
-                status = "ERROR"
-                error_message = str(ex)
-                print(f"Model {i} failed: {ex}")
 
-            row = {}
+                try:
+                    self._reset_model_if_possible()
 
-            row["model_index"] = i
+                    sampled = self.model_generator.sample_parameters()
+                    model_meta = self.model_generator.build_model(sampled)
 
-            if self.config.save_inputs:
-                row.update(sampled)
+                    Model.create()
 
-            row.update(results)
+                    model_file_path = self._build_model_file_path(i)
+                    print(f"Saving MIDAS model to: {model_file_path}")
+                    Model.saveAs(str(model_file_path))
 
-            if self.config.save_analysis_status:
-                row["analysis_status"] = status
-                row["error_message"] = error_message
+                    Model.analyse()
 
-            self.results_writer.write_row(row)
+                    results = self.result_collector.collect(model_meta)
+                    status = "OK"
+                    error_message = ""
 
-        print(f"\nDone. Dataset saved to: {self.config.output_csv_path}")
+                except Exception as ex:
+                    results = {name: None for name in self.config.results_to_save}
+                    status = "ERROR"
+                    error_message = str(ex)
+                    print(f"Model {i} failed: {ex}")
+
+                row = {}
+
+                row["model_index"] = i
+
+                if self.config.save_inputs:
+                    row.update(sampled)
+
+                row.update(results)
+
+                if self.config.save_analysis_status:
+                    row["analysis_status"] = status
+                    row["error_message"] = error_message
+
+                # zapisujemy TYLKO aktualny wiersz
+                self.results_writer.write_row(row)
+
+                i += 1
+
+        except KeyboardInterrupt:
+            print("\nStopping generation...")
+
+        finally:
+            print(f"\nDone. Dataset saved to: {self.config.output_csv_path}")
 
     def _initialize_midas(self) -> None:
         app_config.validate_config()
         MAPI_KEY(app_config.MIDAS_MAPI_KEY)
         MAPI_BASEURL(app_config.MIDAS_BASE_URL)
+    def _collect_results_with_retry(self, model_meta: dict, retries: int = 3, delay_s: int = 5) -> dict:
+        last_error = None
 
+        for attempt in range(1, retries + 1):
+            try:
+                return self.result_collector.collect(model_meta)
+            except Exception as ex:
+                last_error = ex
+                print(f"Result collection failed ({attempt}/{retries}): {ex}")
+
+                if attempt < retries:
+                    time.sleep(delay_s)
+
+        raise last_error
     def _ensure_output_dir(self) -> None:
         csv_dir = os.path.dirname(self.config.output_csv_path)
         if csv_dir:
